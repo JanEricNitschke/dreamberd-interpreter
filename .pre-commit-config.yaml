@@ -1,0 +1,59 @@
+exclude: refs|docs/|serialize.py
+repos:
+  - repo: "https://github.com/pre-commit/pre-commit-hooks"
+    rev: v5.0.0
+    hooks:
+      - id: check-yaml
+        language: python
+      - id: check-json
+        language: python
+      - id: end-of-file-fixer
+        language: python
+      - id: trailing-whitespace
+        language: python
+      - id: requirements-txt-fixer
+        language: python
+      - id: check-merge-conflict
+        language: python
+      - id: check-toml
+        language: python
+      - id: check-xml
+        language: python
+      - id: check-ast
+        language: python
+      - id: check-builtin-literals
+        language: python
+  - repo: "https://github.com/charliermarsh/ruff-pre-commit"
+    rev: v0.6.9
+    hooks:
+      - id: ruff
+        args:
+          - "--fix"
+          - "--exit-non-zero-on-fix"
+          - "--unsafe-fixes"
+      - id: ruff-format
+  - repo: https://github.com/crate-ci/typos
+    rev: v1.26.0
+    hooks:
+      - id: typos
+        args: []
+  - repo: local
+    hooks:
+      - id: pyright
+        name: pyright
+        entry: pyright
+        language: system
+        types: [python]
+        pass_filenames: false
+  # - repo: local
+  #   hooks:
+  #     - id: pylint
+  #       name: pylint
+  #       entry: pylint dreamberd
+  #       language: system
+  #       types: [python]
+  #       pass_filenames: false
+  #       args: [
+  #           "-rn", # Only display messages
+  #           "-sn", # Don't display the score
+  #         ]

@@ -9,7 +9,7 @@ This is incredibly slow. My implementation of DreamBerd is suboptimal, which its
 You can install DreamBerd from PyPi, by doing any the following:
 
 ```
-$ pip install dreamberd 
+$ pip install dreamberd
 $ pip install "dreamberd[input, globals]"
 $ pip install "dreamberd[input]"
 $ pip install "dreamberd[globals]"
@@ -32,7 +32,7 @@ options:
   -s, --show-traceback  show the full Python trackback upon errors
 ```
 
-## TODO 
+## TODO
 
 - Add another expression type which is just the dot operator, used for indexing and accessing names
 - Better debugging (pretty limited for the time being)
@@ -45,7 +45,7 @@ options:
 The goal of this project is to implement every feature from the DreamBerd language. A list of features is in the README file of the project, linked [here](https://github.com/TodePond/DreamBerd---e-acc). Here is a working list of features that there is no chance I will implement (new features may be added - or I should say, removed - as I work on this project and realize I'm too stupid to implement them):
 
 - DB3X: I am not going to even try to parse XML AND parse DB code.
-- Regex: Since type hints seem to not even do anything there is no point in implementing a Regex parser. 
+- Regex: Since type hints seem to not even do anything there is no point in implementing a Regex parser.
 - "Variable Hoisting" (being able to declare variables with a negative lifetime): Given the fact that keywords can be renamed and reassigned in this language, it does not make sense to implement this as the following breaks:
 
     ```javascript
@@ -60,7 +60,7 @@ To my knowledge, everything else has been or will be implemented.
 
 ## Implemented Features
 
-These are features that are implemented according to the [DreamBerd specification](https://github.com/TodePond/DreamBerd---e-acc) in this interpreter. 
+These are features that are implemented according to the [DreamBerd specification](https://github.com/TodePond/DreamBerd---e-acc) in this interpreter.
 
 ### Exclamation Marks!
 
@@ -191,7 +191,7 @@ when (health = 0) {
 }
 ```
 
-#### Technical Info 
+#### Technical Info
 
 Hi! It's me again. I took some creative liberty implementing the `when` statement, here's how it works:
 
@@ -204,7 +204,7 @@ Hi! It's me again. I took some creative liberty implementing the `when` statemen
     ```javascript
     const var l = [1, 2, 3]!
     when (l.length === 4) {
-       print l!  
+       print l!
     }
     const var l_alias = l!
     l_alias[1.5] = 4!  // triggers the when statement
@@ -404,14 +404,14 @@ Type annotations are optional.
 ```javascript
 const var age: Int = 28!
 ```
- 
+
 By the way, strings are just arrays of characters.
 
 ```javascript
 String == Char[]!
 ```
 
-Similarly, integers are just arrays of digits. Hello again! Because of this, you can index into integers! 
+Similarly, integers are just arrays of digits. Hello again! Because of this, you can index into integers!
 
 ```javascript
 const var my_number = 20!

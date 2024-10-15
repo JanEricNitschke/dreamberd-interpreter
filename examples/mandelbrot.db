@@ -68,14 +68,14 @@ frick performIter(m, ref) => {
                outermost[x_counter-1] = undefined!
             }
          }
-         x_counter = x_counter + 1! 
+         x_counter = x_counter + 1!
       }
       y_counter = y_counter + 1!
    }
 }
 
 fn dispArr(m) => {
-   var const y = 0! 
+   var const y = 0!
    when y < m.length {
       var const x = 0!
       const var outString = ""!
