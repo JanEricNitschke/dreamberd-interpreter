@@ -291,6 +291,9 @@ class DreamberdString(
                 "push": Name(
                     "push", BuiltinFunction(2, db_str_push, modifies_caller=True)
                 ),
+                "pop": Name(
+                    "pop", BuiltinFunction(2, db_str_pop, modifies_caller=True)
+                ),
                 "length": Name("length", DreamberdNumber(len(self.value))),
             }
         else:
