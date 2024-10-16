@@ -19,6 +19,14 @@ class ExpressionTreeNode(metaclass=ABCMeta):
     def to_string(self, tabs: int = 0) -> str:
         pass
 
+    @override
+    def __str__(self) -> str:
+        return self.to_string()
+
+    @override
+    def __repr__(self) -> str:
+        return self.to_string()
+
 
 # things like the not operator
 class SingleOperatorNode(ExpressionTreeNode):

@@ -1986,14 +1986,14 @@ def wait_for_async_nexts(
         )
 
     # for each async one, wait until each one is different
-    for name, start_len in zip(async_nexts, old_async_vals, strict=False):
+    for name, start_len in zip(async_nexts, old_async_vals, strict=True):
         curr_len = get_state_watcher(get_name_from_namespaces(name, namespaces))
-        while start_len != curr_len:
+        while start_len == curr_len:
             curr_len = get_state_watcher(get_name_from_namespaces(name, namespaces))
 
     # now, build a namespace for each one
     new_namespace: Namespace = {}
-    for name, old_len in zip(async_nexts, old_async_vals, strict=False):
+    for name, old_len in zip(async_nexts, old_async_vals, strict=True):
         v, ns = get_name_and_namespace_from_namespaces(name, namespaces)
         if not v or not ns or (old_len is not None and not isinstance(v, Variable)):
             raise_error_at_line(
@@ -2003,17 +2003,7 @@ def wait_for_async_nexts(
                 "Something went wrong with accessing the next value of a variable.",
             )
         mod_name = get_modified_next_name(name, id(ns))
-        match old_len:
-            case None:
-                new_namespace[mod_name] = Name(
-                    mod_name, v.value if isinstance(v, Name) else v.prev_values[0]
-                )
-            case i:
-                if not isinstance(v, Variable):
-                    raise_error_at_line(
-                        filename, code, current_line, "Something went wrong."
-                    )
-                new_namespace[mod_name] = Name(mod_name, v.prev_values[i])
+        new_namespace[mod_name] = Name(mod_name, v.value)
     return new_namespace
 
 
