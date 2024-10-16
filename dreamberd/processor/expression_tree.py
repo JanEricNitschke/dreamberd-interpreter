@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from abc import ABCMeta, abstractmethod
 
+from typing_extensions import override
+
 from dreamberd.base import (
     STR_TO_OPERATOR,
     NonFormattedError,
@@ -24,12 +26,13 @@ class SingleOperatorNode(ExpressionTreeNode):
         self.expression = expression
         self.operator = operator
 
+    @override
     def to_string(self, tabs: int = 0) -> str:
         return (
             f"{'  ' * tabs}Single Operator: \n"
-            + f"{'  ' * (tabs + 1)}Operator: {self.operator.value}\n"
-            + f"{'  ' * (tabs + 1)}Expression: \n"
-            + f"{self.expression.to_string(tabs + 2)}"
+            f"{'  ' * (tabs + 1)}Operator: {self.operator.value}\n"
+            f"{'  ' * (tabs + 1)}Expression: \n"
+            f"{self.expression.to_string(tabs + 2)}"
         )
 
 
@@ -37,11 +40,10 @@ class ListNode(ExpressionTreeNode):
     def __init__(self, values: list[ExpressionTreeNode]):
         self.values = values
 
+    @override
     def to_string(self, tabs: int = 0) -> str:
-        return (
-            f"{'  ' * tabs}List: \n"
-            + f"{'  ' * (tabs + 1)}Values: \n"
-            + "\n".join([f"{v.to_string(tabs + 2)}" for v in self.values])
+        return f"{'  ' * tabs}List: \n" f"{'  ' * (tabs + 1)}Values: \n" "\n".join(
+            [f"{v.to_string(tabs + 2)}" for v in self.values]
         )
 
 
@@ -58,14 +60,15 @@ class ExpressionNode(ExpressionTreeNode):
         self.operator = operator
         self.operator_token = operator_token
 
+    @override
     def to_string(self, tabs: int = 0) -> str:
         return (
             f"{'  ' * tabs}Expression: \n"
-            + f"{'  ' * (tabs + 1)}Operator: {self.operator}\n"
-            + f"{'  ' * (tabs + 1)}Left: \n"
-            + f"{self.left.to_string(tabs + 2)}\n"
-            + f"{'  ' * (tabs + 1)}Right: \n"
-            + f"{self.right.to_string(tabs + 2)}"
+            f"{'  ' * (tabs + 1)}Operator: {self.operator}\n"
+            f"{'  ' * (tabs + 1)}Left: \n"
+            f"{self.left.to_string(tabs + 2)}\n"
+            f"{'  ' * (tabs + 1)}Right: \n"
+            f"{self.right.to_string(tabs + 2)}"
         )
 
 
@@ -74,12 +77,13 @@ class FunctionNode(ExpressionTreeNode):
         self.name = name
         self.args = args
 
+    @override
     def to_string(self, tabs: int = 0) -> str:
         return (
             f"{'  ' * tabs}Function: \n"
-            + f"{'  ' * (tabs + 1)}Name: {self.name}\n"
-            + f"{'  ' * (tabs + 1)}Arguments: \n"
-            + "\n".join([f"{arg.to_string(tabs + 2)}" for arg in self.args])
+            f"{'  ' * (tabs + 1)}Name: {self.name}\n"
+            f"{'  ' * (tabs + 1)}Arguments: \n"
+            "\n".join([f"{arg.to_string(tabs + 2)}" for arg in self.args])
         )
 
 
@@ -88,13 +92,14 @@ class IndexNode(ExpressionTreeNode):
         self.value = value
         self.index = index
 
+    @override
     def to_string(self, tabs: int = 0) -> str:
         return (
             f"{'  ' * tabs}Index: \n"
-            + f"{'  ' * (tabs + 1)}Of: \n"
-            + f"{self.value.to_string(tabs + 2)}\n"
-            + f"{'  ' * (tabs + 1)}At: \n"
-            + f"{self.index.to_string(tabs + 2)}"
+            f"{'  ' * (tabs + 1)}Of: \n"
+            f"{self.value.to_string(tabs + 2)}\n"
+            f"{'  ' * (tabs + 1)}At: \n"
+            f"{self.index.to_string(tabs + 2)}"
         )
 
 
@@ -102,6 +107,7 @@ class ValueNode(ExpressionTreeNode):
     def __init__(self, name_or_value: Token):
         self.name_or_value = name_or_value
 
+    @override
     def to_string(self, tabs: int = 0) -> str:
         return f"{'  ' * tabs}Value: {self.name_or_value}"
 
@@ -115,11 +121,13 @@ def get_expr_first_token(expr: ExpressionTreeNode) -> Token | None:
         case FunctionNode():
             return expr.name
         case ListNode():
-            return None if not expr.values else get_expr_first_token(expr.values[0])
+            return None if not expr.values else get_expr_first_token(expr.values[0])  # noqa: PD011
         case ValueNode():
             return expr.name_or_value
         case IndexNode():
             return get_expr_first_token(expr.value) or get_expr_first_token(expr.index)
+        case ExpressionTreeNode():
+            return None
 
 
 def build_expression_tree(
@@ -133,9 +141,7 @@ def build_expression_tree(
     """
     if not tokens:
         msg = "Something went wrong, I don't know what so figure it out :)"
-        raise NonFormattedError(
-            msg
-        )
+        raise NonFormattedError(msg)
 
     # tabs at the beginning or end do not matter
     for token in tokens[1:-1]:
@@ -156,7 +162,7 @@ def build_expression_tree(
         token for token in tokens if token.type != TokenType.WHITESPACE
     ]
     if (
-        len(tokens_without_whitespace) == 2
+        len(tokens_without_whitespace) == 2  # noqa: PLR2004
         and tokens_without_whitespace[0].type == TokenType.L_SQUARE
         and tokens_without_whitespace[1].type == TokenType.R_SQUARE
     ):
@@ -315,25 +321,25 @@ def build_expression_tree(
                             )
 
                         # now go through all the commas and check if the whitespace is significant
-                        all_commas = []
+                        all_commas: list[int] = []
                         bracket_layers = 0  # yes i'm setting this damn thing twice
-                        for i, (token, tok_or_op) in enumerate(
+                        for inner_i, (inner_token, tok_or_op) in enumerate(
                             zip(tokens[:-1], updated_list, strict=False)
                         ):  # stop here to avoid angry errors
-                            if token.type == TokenType.L_SQUARE:
+                            if inner_token.type == TokenType.L_SQUARE:
                                 bracket_layers += 1
-                            elif token.type == TokenType.R_SQUARE:
+                            elif inner_token.type == TokenType.R_SQUARE:
                                 bracket_layers -= 1
                             if (
                                 tok_or_op == OperatorType.COM
                                 and bracket_layers == 1
                                 and (
                                     l_width == 0
-                                    or l_width == len(tokens[i + 1].value)
-                                    and tokens[i + 1].type == TokenType.WHITESPACE
+                                    or l_width == len(tokens[inner_i + 1].value)
+                                    and tokens[inner_i + 1].type == TokenType.WHITESPACE
                                 )
                             ):
-                                all_commas.append(i)
+                                all_commas.append(inner_i)
 
                         # not single element
                         if all_commas:
@@ -400,7 +406,7 @@ def build_expression_tree(
         # finally end this vicious cycle
         return ValueNode(name_or_value)
 
-    # max_index is the token with the maximum surrouding whitespace
+    # max_index is the token with the maximum surrounding whitespace
     if updated_list[max_index] == OperatorType.COM:
         # this means it is a function
         # we need to find every other comma as they become the arguments of the function
@@ -422,20 +428,16 @@ def build_expression_tree(
 
         all_commas = []
         for i in range(len(updated_list)):
-            if (
-                updated_list[i].value == ","
-            ):  # okay this is weird because enums have .value and tokens have .value
-                if (
-                    max_width == 0
-                    or (
-                        tokens[i + 1].type == TokenType.WHITESPACE
-                        and len(tokens[i + 1].value)
-                    )
-                    == max_width
-                ):
-                    all_commas.append(i)
+            if updated_list[i].value == "," and (
+                max_width == 0
+                or (
+                    tokens[i + 1].type == TokenType.WHITESPACE
+                    and len(tokens[i + 1].value) == max_width
+                )
+            ):
+                all_commas.append(i)
 
-        # i have no idea what the hell im doin
+        # i have no idea what the hell im doing
         return FunctionNode(
             tokens_without_whitespace[0],
             [

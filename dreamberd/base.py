@@ -5,6 +5,8 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import NoReturn
 
+from typing_extensions import override
+
 ALPH_NUMS = set("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_.")
 
 
@@ -24,9 +26,9 @@ def debug_print(filename: str, code: str, message: str, token: Token) -> None:
     num_carrots, num_spaces = len(token.value), token.col - len(token.value) + 1
     debug_string = (
         f"\033[33m{filename}, line {line}\033[39m\n\n"
-        + f"  {code.split(chr(10))[line - 1]}\n"
-        + f" {num_spaces * ' '}{num_carrots * '^'}\n"
-        + f"\033[33m{message}\033[39m"
+        f"  {code.split(chr(10))[line - 1]}\n"
+        f" {num_spaces * ' '}{num_carrots * '^'}\n"
+        f"\033[33m{message}\033[39m"
     )
     print("\n", debug_string, "\n", sep="")
 
@@ -46,9 +48,9 @@ def raise_error_at_token(
     num_carrots, num_spaces = len(token.value), token.col - len(token.value) + 1
     error_string = (
         f"\033[33m{filename}, line {line}\033[39m\n\n"
-        + f"  {code.split(chr(10))[line - 1]}\n"
-        + f" {num_spaces * ' '}{num_carrots * '^'}\n"
-        + f"\033[31m{message}\033[39m"
+        f"  {code.split(chr(10))[line - 1]}\n"
+        f" {num_spaces * ' '}{num_carrots * '^'}\n"
+        f"\033[31m{message}\033[39m"
     )
     raise InterpretationError(error_string)
 
@@ -59,8 +61,8 @@ def raise_error_at_line(filename: str, code: str, line: int, message: str) -> No
         raise InterpretationError(msg)
     error_string = (
         f"\033[33m{filename}, line {line}\033[39m\n\n"
-        + f"  {code.split(chr(10))[line - 1]}\n\n"
-        + f"\033[31m{message}\033[39m"
+        f"  {code.split(chr(10))[line - 1]}\n\n"
+        f"\033[31m{message}\033[39m"
     )
     raise InterpretationError(error_string)
 
@@ -92,7 +94,7 @@ class TokenType(Enum):
     GREATER_THAN = ">"
     LESS_EQUAL = "<="
     GREATER_EQUAL = ">="
-    NOT_EQUAL = ";="  #!@#!@#!@#
+    NOT_EQUAL = ";="  #!@#!@#!@#  # noqa: EXE003, EXE005
     PIPE = "|"
     AND = "&"
 
@@ -121,7 +123,7 @@ class OperatorType(Enum):
     LE = "<="
     OR = "|"
     AND = "&"
-    COM = ","  # this is just here to seperate variables in a function
+    COM = ","  # this is just here to separate variables in a function
     E = "="
     EE = "=="
     EEE = "==="
@@ -143,5 +145,6 @@ class Token:
     line: int = field(hash=False)
     col: int = field(hash=False)
 
+    @override
     def __repr__(self) -> str:
         return f"Token({self.type}, {self.value!r})"

@@ -22,18 +22,6 @@ from typing import Literal, TypeAlias
 
 import requests
 
-KEY_MOUSE_IMPORTED = True
-try:
-    from pynput import keyboard, mouse
-except ImportError:
-    KEY_MOUSE_IMPORTED = False
-
-GITHUB_IMPORTED = True
-try:
-    import github
-except ImportError:
-    GITHUB_IMPORTED = False
-
 from dreamberd.base import (
     NonFormattedError,
     OperatorType,
@@ -100,7 +88,23 @@ from dreamberd.processor.syntax_tree import (
     VariableDeclaration,
     WhenStatement,
 )
-from dreamberd.serialize import deserialize_obj, serialize_obj
+from dreamberd.serialize import (
+    deserialize_obj,  # pyright: ignore[reportUnknownVariableType]
+    serialize_obj,  # pyright: ignore[reportUnknownVariableType]
+)
+
+KEY_MOUSE_IMPORTED = True
+try:
+    from pynput import keyboard, mouse
+except ImportError:
+    KEY_MOUSE_IMPORTED = False
+
+GITHUB_IMPORTED = True
+try:
+    import github
+except ImportError:
+    GITHUB_IMPORTED = False
+
 
 # several "ratios" used in the approx equal function
 NUM_EQUALITY_RATIO = 0.1  # a-b / b
@@ -216,14 +220,17 @@ def register_async_function(
             f"Expected more arguments for function call with {len(func.args)} argument{'s' if len(func.args) != 1 else ''}.",
             expr.name,
         )
-    function_namespaces = [*namespaces, {name: Name(name, arg) for name, arg in zip(func.args, args, strict=False)}]
-    async_statements.append((func.code, function_namespaces, 0, 1))
+    function_namespaces = [
+        *namespaces,
+        {name: Name(name, arg) for name, arg in zip(func.args, args, strict=False)},
+    ]
+    async_statements.append((func.code, function_namespaces, 0, 1))  # pyright: ignore[reportArgumentType]
 
 
 def get_code_from_when_statement_watchers(
     name_or_id: str | int, when_statement_watchers: WhenStatementWatchers
 ) -> list[tuple[ExpressionTreeNode, list[tuple[CodeStatement, ...]]]]:
-    vals = []
+    vals: list[tuple[ExpressionTreeNode, list[tuple[CodeStatement, ...]]]] = []
     for watcher_dict in when_statement_watchers:
         if val := watcher_dict.get(name_or_id):
             vals += val
@@ -264,7 +271,7 @@ def load_global_dreamberd_variables(namespaces: list[Namespace]) -> None:
     if not inf_var_list.is_file():
         return
 
-    with open(inf_var_list) as f:
+    with inf_var_list.open() as f:
         for line in f:
             if not line.strip():
                 continue
@@ -273,14 +280,14 @@ def load_global_dreamberd_variables(namespaces: list[Namespace]) -> None:
                 DB_VAR_TO_VALUE_SEP
             )
             can_be_reset = (
-                eval(can_be_reset) if can_be_reset in ["True", "False"] else True
+                eval(can_be_reset) if can_be_reset in ["True", "False"] else True  # noqa: S307
             )  # safe code !!!!!!!!!!!!
             can_edit_value = (
-                eval(can_edit_value) if can_edit_value in ["True", "False"] else True
+                eval(can_edit_value) if can_edit_value in ["True", "False"] else True  # noqa: S307
             )
 
-            with open(dir_path / INF_VAR_VALUES_PATH / identity, "rb") as data_f:
-                value = pickle.load(data_f)
+            with (dir_path / INF_VAR_VALUES_PATH / identity).open("rb") as data_f:
+                value = pickle.load(data_f)  # noqa: S301
             namespaces[-1][name] = Variable(
                 name,
                 [
@@ -298,13 +305,17 @@ def load_global_dreamberd_variables(namespaces: list[Namespace]) -> None:
 
 def load_public_global_variables(namespaces: list[Namespace]) -> None:
     repo_url = "https://raw.githubusercontent.com/vivaansinghvi07/dreamberd-interpreter-globals-patched/main"
-    for line in requests.get(f"{repo_url}/public_globals.txt").text.split("\n"):
+    for line in requests.get(f"{repo_url}/public_globals.txt", timeout=60).text.split(
+        "\n"
+    ):
         if not line.strip():
             continue
         name, address, confidence = line.split(DB_VAR_TO_VALUE_SEP)
         can_be_reset = can_edit_value = False  # these were const
 
-        serialized_value = requests.get(f"{repo_url}/serialized_objects/{address}").text
+        serialized_value = requests.get(
+            f"{repo_url}/serialized_objects/{address}", timeout=60
+        ).text
         try:
             value = deserialize_obj(json.loads(serialized_value))
             namespaces[-1][name] = Variable(
@@ -345,7 +356,7 @@ def open_global_variable_issue(name: str, value: DreamberdValue, confidence: int
         )
 
     issue_body = json.dumps(serialize_obj(value))
-    with github.Github(auth=github.Auth.Token(access_token)) as g:  # type: ignore
+    with github.Github(auth=github.Auth.Token(access_token)) as g:  # pyright: ignore[reportPossiblyUnboundVariable]
         repo = g.get_repo("vivaansinghvi07/dreamberd-interpreter-globals")
         repo.create_issue(
             f"Create Public Global: {name}{DB_VAR_TO_VALUE_SEP}{confidence}", issue_body
@@ -367,7 +378,7 @@ def declare_new_variable(
         statement.modifiers,
     )
     name_token = statement.name  # for error handling purposes
-    is_global = len(modifiers) == 3
+    is_global = len(modifiers) == 3  # noqa: PLR2004
     can_be_reset = (
         isinstance(
             v := get_value_from_namespaces(modifiers[-2], namespaces), DreamberdKeyword
@@ -502,8 +513,6 @@ def declare_new_variable(
 
     # if we're dealing with seconds just sleep in another thread and remove the variable lifetime
     if lifetime == "Infinity":
-        # if len(namespaces) == 1: continue  # only save global vars if they are in the global scope
-
         # define and initialize the directories
         dir_path = Path().home() / DB_RUNTIME_PATH
         inf_values_path = dir_path / INF_VAR_VALUES_PATH
@@ -512,15 +521,15 @@ def declare_new_variable(
         if not inf_values_path.is_dir():
             inf_values_path.mkdir()
 
-        generated_addr = random.randint(
+        generated_addr = random.randint(  # noqa: S311
             1, 100000000000
         )  # hopefully never repeat, if it does, oh well :)
-        with open(dir_path / INF_VAR_PATH, "a") as f:
-            SEP = DB_VAR_TO_VALUE_SEP
+        with (dir_path / INF_VAR_PATH).open("a") as f:
+            sep = DB_VAR_TO_VALUE_SEP
             f.write(
-                f"{name}{SEP}{generated_addr}{SEP}{can_be_reset}{SEP}{can_edit_value}{SEP}{confidence}\n"
+                f"{name}{sep}{generated_addr}{sep}{can_be_reset}{sep}{can_edit_value}{sep}{confidence}\n"
             )
-        with open(dir_path / INF_VAR_VALUES_PATH / str(generated_addr), "wb") as f:
+        with (dir_path / INF_VAR_VALUES_PATH / str(generated_addr)).open("wb") as f:
             pickle.dump(value, f)
 
     elif is_lifetime_temporal:
@@ -615,7 +624,7 @@ def assign_variable(
                 statement.name,
             )
 
-    visited_whens = []
+    visited_whens: list[tuple[ExpressionTreeNode, list[tuple[CodeStatement, ...]]]] = []
     if indexes:
         # goes down the list until it can assign something in the list
         def assign_variable_helper(
@@ -680,14 +689,18 @@ def assign_variable(
                 name_token,
             )
         var.add_lifetime(
-            new_value, confidence, 100000000000, var.can_be_reset, var.can_edit_value
+            new_value,
+            confidence,
+            100000000000,
+            can_be_reset=var.can_be_reset,
+            can_edit_value=var.can_edit_value,
         )
 
     # check if there is anything watching this value
     watchers_key = (
         name.split(".")[-1],
         id(ns),
-    )  # this shit should be a seperate function
+    )  # this shit should be a separate function
     if watcher := name_watchers.get(watchers_key):
         st, stored_nexts, watcher_ns, promise = watcher
         mod_name = get_modified_next_name(*watchers_key)
@@ -789,7 +802,7 @@ def evaluate_escape_sequences(
     val: DreamberdString,
 ) -> DreamberdString:  # this needs only be called once per completed string
     return DreamberdString(
-        eval(f'"{val.value.replace(f"{chr(34)}", f"{chr(92)}{chr(34)}")}"')
+        eval(f'"{val.value.replace(f"{chr(34)}", f"{chr(92)}{chr(34)}")}"')  # noqa: S307
     )  # cursed string parsing
 
 
@@ -802,11 +815,11 @@ def interpret_formatted_string(
     val_string = val.value
     try:
         locale.setlocale(locale.LC_ALL, locale.getlocale()[0])
-        symbol: str = locale.localeconv()["currency_symbol"]  # type: ignore
+        symbol: str = locale.localeconv()["currency_symbol"]
     except locale.Error:
         symbol = "$"
     if not any(
-        indeces := [
+        indices := [
             val_string[i : i + len(symbol)] == symbol
             for i in range(len(val_string) - len(symbol))
         ]
@@ -816,7 +829,7 @@ def interpret_formatted_string(
         evaluated_values: list[
             tuple[str, tuple[int, int]]
         ] = []  # [(str, (start, end))...]
-        for group_start_index in [i for i in range(len(indeces)) if indeces[i]]:
+        for group_start_index in [i for i in range(len(indices)) if indices[i]]:
             if val_string[group_start_index + len(symbol)] == "{":
                 end_index = group_start_index + len(symbol)
                 bracket_layers = 1
@@ -865,9 +878,8 @@ def determine_non_name_value(val: Token) -> DreamberdValue:
     Takes a string/Token and determines if the value is a number, string, or invalid.
     Valid names should have been found already by the previous function.
     """
-    global deleted_values
     retval = None
-    if len(v := val.value.split(".")) <= 2 and all(x.isdigit() for x in v):
+    if len(v := val.value.split(".")) <= 2 and all(x.isdigit() for x in v):  # noqa: PLR2004
         retval = DreamberdNumber([int, float][len(v) - 1](val.value))
     if not retval:
         retval = DreamberdString(val.value)
@@ -880,7 +892,7 @@ def determine_non_name_value(val: Token) -> DreamberdValue:
 
 def is_approx_equal(left: DreamberdValue, right: DreamberdValue) -> DreamberdBoolean:
     if is_really_really_equal(left, right).value:
-        return DreamberdBoolean(True)
+        return DreamberdBoolean(True)  # noqa: FBT003
 
     if isinstance(left, DreamberdString) or isinstance(right, DreamberdString):
         return DreamberdBoolean(
@@ -914,17 +926,17 @@ def is_approx_equal(left: DreamberdValue, right: DreamberdValue) -> DreamberdBoo
     if (val := db_to_boolean(left).value) == db_to_boolean(
         right
     ).value and val is not None:
-        return DreamberdBoolean(True)
+        return DreamberdBoolean(True)  # noqa: FBT003
 
-    if type(left) != type(right):
+    if type(left) is not type(right):
         return DreamberdBoolean(None)  # maybe, programmer got too lazy
 
     if isinstance(left, DreamberdList) and isinstance(right, DreamberdList):
         if len(left.values) == len(right.values) == 0:
-            return DreamberdBoolean(True)
+            return DreamberdBoolean(True)  # noqa: FBT003
         is_equals = [
             is_approx_equal(l, r)
-            for l, r in zip(left.values, right.values, strict=False)
+            for l, r in zip(left.values, right.values, strict=False)  # noqa: E741
         ]
         ratio = sum(
             [int(x.value) if x.value is not None else 0.5 for x in is_equals]
@@ -933,7 +945,7 @@ def is_approx_equal(left: DreamberdValue, right: DreamberdValue) -> DreamberdBoo
 
     if isinstance(left, DreamberdMap) and isinstance(right, DreamberdMap):
         if len(left.self_dict) == len(right.self_dict) == 0:
-            return DreamberdBoolean(True)
+            return DreamberdBoolean(True)  # noqa: FBT003
         is_equals = [
             is_approx_equal(left.self_dict[key], right.self_dict[key])
             for key in left.self_dict.keys() & right.self_dict.keys()
@@ -945,11 +957,11 @@ def is_approx_equal(left: DreamberdValue, right: DreamberdValue) -> DreamberdBoo
 
     if isinstance(left, DreamberdFunction) and isinstance(right, DreamberdFunction):
         if len(left.code) == len(right.code) == 0:
-            return DreamberdBoolean(True)
+            return DreamberdBoolean(True)  # noqa: FBT003
         ratio = sum(
             [
                 len(set(l) | set(r)) / min(len(l), len(r))
-                for l, r in zip(left.code, right.code, strict=False)
+                for l, r in zip(left.code, right.code, strict=False)  # noqa: E741
             ]
         ) / max(len(left.code), len(right.code))
         return DreamberdBoolean(
@@ -958,7 +970,7 @@ def is_approx_equal(left: DreamberdValue, right: DreamberdValue) -> DreamberdBoo
 
     if isinstance(left, DreamberdObject) and isinstance(right, DreamberdObject):
         if len(left.namespace) == len(right.namespace) == 0:
-            return DreamberdBoolean(True)
+            return DreamberdBoolean(True)  # noqa: FBT003
         is_equals = [
             is_approx_equal(left.namespace[key].value, right.namespace[key].value)
             for key in left.namespace.keys() & right.namespace.keys()
@@ -987,16 +999,16 @@ def is_equal(left: DreamberdValue, right: DreamberdValue) -> DreamberdBoolean:
     if (val := db_to_boolean(left).value) == db_to_boolean(
         right
     ).value and val is not None:
-        return DreamberdBoolean(True)
+        return DreamberdBoolean(True)  # noqa: FBT003
 
-    if type(left) != type(right):
+    if type(left) is not type(right):
         return DreamberdBoolean(None)  # maybe, programmer got too lazy
 
     if isinstance(left, DreamberdList) and isinstance(right, DreamberdList):
         return DreamberdBoolean(
             all(
                 is_equal(l, r).value
-                    for l, r in zip(left.values, right.values, strict=False)
+                for l, r in zip(left.values, right.values, strict=False)  # noqa: E741
             )
         )
 
@@ -1018,8 +1030,8 @@ def is_equal(left: DreamberdValue, right: DreamberdValue) -> DreamberdBoolean:
 
 
 def is_really_equal(left: DreamberdValue, right: DreamberdValue) -> DreamberdBoolean:
-    if type(left) != type(right):
-        return DreamberdBoolean(False)
+    if type(left) is not type(right):
+        return DreamberdBoolean(False)  # noqa: FBT003
     match (
         left,
         right,
@@ -1032,23 +1044,23 @@ def is_really_equal(left: DreamberdValue, right: DreamberdValue) -> DreamberdBoo
         ):
             return DreamberdBoolean(left.value == right.value)
         case (DreamberdUndefined(), DreamberdUndefined()):
-            return DreamberdBoolean(True)
+            return DreamberdBoolean(True)  # noqa: FBT003
         case (DreamberdObject(), DreamberdObject()):
             return DreamberdBoolean(
                 left.class_name == right.class_name
                 and left.namespace.keys() == right.namespace.keys()
                 and all(
                     is_really_equal(
-                            left.namespace[k].value, right.namespace[k].value
-                        ).value
-                        for k in left.namespace
+                        left.namespace[k].value, right.namespace[k].value
+                    ).value
+                    for k in left.namespace
                 )
             )
         case (DreamberdFunction(), DreamberdFunction()):
             return DreamberdBoolean(
                 all(
                     getattr(left, name) == getattr(right, name)
-                        for name in ["code", "args", "is_async"]
+                    for name in ["code", "args", "is_async"]
                 )
             )
         case (DreamberdList(), DreamberdList()):
@@ -1056,7 +1068,7 @@ def is_really_equal(left: DreamberdValue, right: DreamberdValue) -> DreamberdBoo
                 len(left.values) == len(right.values)
                 and all(
                     is_really_equal(l, r).value
-                        for l, r in zip(left.values, right.values, strict=False)
+                    for l, r in zip(left.values, right.values, strict=False)  # noqa: E741
                 )
             )
         case (DreamberdMap(), DreamberdMap()):
@@ -1064,10 +1076,11 @@ def is_really_equal(left: DreamberdValue, right: DreamberdValue) -> DreamberdBoo
                 left.self_dict.keys() == right.self_dict.keys()
                 and all(
                     is_really_equal(left.self_dict[k], right.self_dict[k]).value
-                        for k in left.self_dict
+                    for k in left.self_dict
                 )
             )
-    return DreamberdBoolean(None)
+        case (DreamberdValue(), DreamberdValue()):
+            return DreamberdBoolean(None)
 
 
 def is_really_really_equal(
@@ -1077,7 +1090,7 @@ def is_really_really_equal(
 
 
 def is_less_than(left: DreamberdValue, right: DreamberdValue) -> DreamberdBoolean:
-    if type(left) != type(right):
+    if type(left) is not type(right):
         raise_error_at_line(
             filename,
             code,
@@ -1096,9 +1109,9 @@ def is_less_than(left: DreamberdValue, right: DreamberdValue) -> DreamberdBoolea
                 and (left.value is None or right.value is None)
             ):
                 return DreamberdBoolean(None)
-            return DreamberdBoolean(left.value < right.value)  # type: ignore
+            return DreamberdBoolean(left.value < right.value)  # pyright: ignore[reportUnknownArgumentType, reportOperatorIssue]
         case (DreamberdUndefined(), DreamberdUndefined()):
-            return DreamberdBoolean(False)
+            return DreamberdBoolean(False)  # noqa: FBT003
         case (DreamberdList(), DreamberdList()):
             return DreamberdBoolean(len(left.values) < len(right.values))
         case (DreamberdMap(), DreamberdMap()):
@@ -1108,13 +1121,14 @@ def is_less_than(left: DreamberdValue, right: DreamberdValue) -> DreamberdBoolea
             | (DreamberdObject(), DreamberdObject())
             | (DreamberdFunction(), DreamberdFunction())
         ):
-            raise_error_at_line(
+            raise_error_at_line(  # noqa: RET503
                 filename,
                 code,
                 current_line,
                 f"Comparison not supported between elements of type {type(left).__name__}.",
             )
-    return DreamberdBoolean(None)
+        case (DreamberdValue(), DreamberdValue()):
+            return DreamberdBoolean(None)
 
 
 def perform_single_value_operation(
@@ -1126,11 +1140,11 @@ def perform_single_value_operation(
                 case DreamberdNumber():
                     return DreamberdNumber(-val.value)
                 case DreamberdList():
-                    return DreamberdList(val.values[::-1])
+                    return DreamberdList(val.values[::-1])  # noqa: PD011
                 case DreamberdString():
                     return DreamberdString(val.value[::-1])
                 case _:
-                    raise_error_at_token(
+                    raise_error_at_token(  # noqa: RET503
                         filename,
                         code,
                         f"Cannot negate a value of type {type(val).__name__}",
@@ -1139,10 +1153,10 @@ def perform_single_value_operation(
         case TokenType.SEMICOLON:
             val_bool = db_to_boolean(val)
             return db_not(val_bool)
-    raise_error_at_token(
-        filename, code, "Something went wrong. My bad.", operator_token
-    )
-    return None
+        case _:
+            raise_error_at_token(  # noqa: RET503
+                filename, code, "Something went wrong. My bad.", operator_token
+            )
 
 
 def perform_two_value_operation(
@@ -1202,7 +1216,9 @@ def perform_two_value_operation(
                 case None, False:
                     return left  # maybe?
                 case None, None:
-                    return left if random.random() < 0.50 else right  # maybe?
+                    return (
+                        left if random.random() < 0.50 else right  # noqa: S311, PLR2004
+                    )  # maybe?
         case OperatorType.AND:
             left_bool = db_to_boolean(left)
             right_bool = db_to_boolean(right)
@@ -1216,7 +1232,9 @@ def perform_two_value_operation(
                 case None, False:
                     return right  # nope
                 case None, None:
-                    return left if random.random() < 0.50 else right  # maybe?
+                    return (
+                        left if random.random() < 0.50 else right  # noqa: S311, PLR2004
+                    )  # maybe?
         case OperatorType.E:
             return is_approx_equal(left, right)
 
@@ -1236,12 +1254,13 @@ def perform_two_value_operation(
         case OperatorType.GT | OperatorType.LE:
             is_eq = is_really_equal(left, right)
             is_less = is_less_than(left, right)
-            is_le = False
             match is_eq.value, is_less.value:  # performs the OR operation
                 case (True, _) | (_, True):
                     is_le = True
                 case (None, _) | (_, None):
                     is_le = None
+                case (False, False):
+                    is_le = False
             if operator == OperatorType.LE:
                 return DreamberdBoolean(is_le)
             return db_not(DreamberdBoolean(is_le))
@@ -1249,9 +1268,11 @@ def perform_two_value_operation(
             if operator == OperatorType.LT:
                 return is_less_than(left, right)
             return db_not(is_less_than(left, right))
-
-    raise_error_at_token(filename, code, "Something went wrong here.", operator_token)
-    return None
+        case OperatorType.COM:
+            raise_error_at_token(
+                filename, code, "Something went wrong here.", operator_token
+            )
+            return None
 
 
 def get_value_from_namespaces(
@@ -1309,7 +1330,7 @@ def evaluate_expression(
         namespaces,
         async_statements,
         when_statement_watchers,
-        ignore_string_escape_sequences,
+        ignore_string_escape_sequences=ignore_string_escape_sequences,
     )
     if (
         isinstance(retval, DreamberdNumber | DreamberdString)
@@ -1326,6 +1347,7 @@ def evaluate_expression_for_real(
     namespaces: list[dict[str, Variable | Name]],
     async_statements: AsyncStatements,
     when_statement_watchers: WhenStatementWatchers,
+    *,
     ignore_string_escape_sequences: bool,
 ) -> DreamberdValue:
     expr = get_built_expression(expr)
@@ -1485,7 +1507,7 @@ def evaluate_expression_for_real(
                     evaluate_expression(
                         x, namespaces, async_statements, when_statement_watchers
                     )
-                    for x in expr.values
+                    for x in expr.values  # noqa: PD011
                 ]
             )
 
@@ -1541,15 +1563,15 @@ def evaluate_expression_for_real(
                 expr.expression, namespaces, async_statements, when_statement_watchers
             )
             return perform_single_value_operation(val, expr.operator)
-
-    return DreamberdUndefined()
+        case ExpressionTreeNode():
+            return DreamberdUndefined()
 
 
 def handle_next_expressions(
     expr: ExpressionTreeNode, namespaces: list[Namespace]
 ) -> tuple[ExpressionTreeNode, set[tuple[str, int]], set[str]]:
     """
-    This function looks for the "next" keyword in an expression, and detects seperate await modifiers for that keyword.
+    This function looks for the "next" keyword in an expression, and detects separate await modifiers for that keyword.
     Then, it removes the "next" and "await next" nodes from the ExpressionTree, and returns the head of the tree.
     Additionally, every name that appears in the function as a next or async next, its value is saved in a temporary namespace.
     With the returned set of names that are used in "next" and "await next", we can insert these into a dictionary
@@ -1653,7 +1675,7 @@ def handle_next_expressions(
                         )
 
             else:
-                replacement_args = []
+                replacement_args: list[ExpressionTreeNode] = []
                 for arg in expr.args:
                     new_expr, normal_arg_nexts, async_arg_nexts = (
                         handle_next_expressions(arg, namespaces)
@@ -1663,8 +1685,8 @@ def handle_next_expressions(
                 expr.args = replacement_args
 
         case ListNode():
-            replacement_values = []
-            for ex in expr.values:
+            replacement_values: list[ExpressionTreeNode] = []
+            for ex in expr.values:  # noqa: PD011
                 new_expr, normal_expr_nexts, async_expr_nexts = handle_next_expressions(
                     ex, namespaces
                 )
@@ -1707,6 +1729,8 @@ def handle_next_expressions(
             )
             expr.expression = new_expr
             inner_nexts.append((normal_expr_nexts, async_expr_nexts))
+        case ExpressionTreeNode():
+            pass
     for nn, an in inner_nexts:
         normal_nexts |= nn
         async_nexts |= an
@@ -1747,7 +1771,7 @@ def save_previous_values_next_expr(
             )
             return value_ns | index_ns
         case ListNode():
-            for ex in expr_to_modify.values:
+            for ex in expr_to_modify.values:  # noqa: PD011
                 saved_namespace |= save_previous_values_next_expr(ex, nexts, namespaces)
             return saved_namespace
         case FunctionNode():
@@ -1760,7 +1784,8 @@ def save_previous_values_next_expr(
             return save_previous_values_next_expr(
                 expr_to_modify.expression, nexts, namespaces
             )
-    return saved_namespace
+        case ExpressionTreeNode():
+            return saved_namespace
 
 
 def determine_statement_type(
@@ -1806,7 +1831,7 @@ def determine_statement_type(
                     and re.match(r"^f?u?n?c?t?i?o?n?$", val.value.value)
                 ):
                     return st
-            elif len(st.keywords) == 2:
+            elif len(st.keywords) == 2:  # noqa: PLR2004
                 val = get_name_from_namespaces(st.keywords[0].value, namespaces)
                 other_val = get_name_from_namespaces(st.keywords[1].value, namespaces)
                 if (
@@ -1821,21 +1846,19 @@ def determine_statement_type(
         elif isinstance(
             st, VariableDeclaration
         ):  # allow for const const const and normal declarations
-            if len(st.modifiers) == 2:
+            if len(st.modifiers) == 2:  # noqa: PLR2004
                 if all(
-                    (val := get_name_from_namespaces(mod.value, namespaces))
-                        is not None
-                        and isinstance(val.value, DreamberdKeyword)
-                        and val.value.value in {"const", "var"}
-                        for mod in st.modifiers
+                    (val := get_name_from_namespaces(mod.value, namespaces)) is not None
+                    and isinstance(val.value, DreamberdKeyword)
+                    and val.value.value in {"const", "var"}
+                    for mod in st.modifiers
                 ):
                     return st
-            elif len(st.modifiers) == 3 and all(
-                (val := get_name_from_namespaces(mod.value, namespaces))
-                    is not None
-                    and isinstance(val.value, DreamberdKeyword)
-                    and val.value.value == "const"
-                    for mod in st.modifiers
+            elif len(st.modifiers) == 3 and all(  # noqa: PLR2004
+                (val := get_name_from_namespaces(mod.value, namespaces)) is not None
+                and isinstance(val.value, DreamberdKeyword)
+                and val.value.value == "const"
+                for mod in st.modifiers
             ):
                 return st
         elif isinstance(st, ExportStatement):
@@ -1863,6 +1886,13 @@ def determine_statement_type(
     return None
 
 
+def get_state_watcher(val: Variable | Name | None) -> int | None:
+    if isinstance(val, Name):
+        msg = "Got a `Name` when a `Variable` or `None` was expected."
+        raise NonFormattedError(msg)
+    return None if not val else len(v) if (v := val.prev_values) else 0
+
+
 def adjust_for_normal_nexts(
     statement: CodeStatementWithExpression,
     async_nexts: set[str],
@@ -1871,9 +1901,9 @@ def adjust_for_normal_nexts(
     namespaces: list[Namespace],
     prev_namespace: Namespace,
 ):
-    old_async_vals, old_normal_vals = [], []
-    def get_state_watcher(val):
-        return None if not val else len(v) if (v := val.prev_values) else 0
+    old_async_vals: list[int | None] = []
+    old_normal_vals: list[int | None] = []
+
     for name in async_nexts:
         old_async_vals.append(
             get_state_watcher(get_name_from_namespaces(name, namespaces))
@@ -1948,9 +1978,8 @@ def adjust_for_normal_nexts(
 def wait_for_async_nexts(
     async_nexts: set[str], namespaces: list[Namespace]
 ) -> Namespace:
-    old_async_vals = []
-    def get_state_watcher(val):
-        return None if not val else len(v) if (v := val.prev_values) else 0
+    old_async_vals: list[int | None] = []
+
     for name in async_nexts:
         old_async_vals.append(
             get_state_watcher(get_name_from_namespaces(name, namespaces))
@@ -2047,6 +2076,8 @@ def interpret_name_watching_statement(
             print_expression_debug(
                 statement.debug, statement.expression, expr_val, namespaces
             )
+        case WhenStatement():
+            pass
 
 
 def clear_temp_namespace(
@@ -2067,7 +2098,7 @@ def execute_conditional(
     execute = (
         condition.value is True
         if condition.value is not None
-        else random.random() < 0.50
+        else random.random() < 0.50  # noqa: S311, PLR2004
     )
     if execute:
         return interpret_code_statements(
@@ -2095,7 +2126,7 @@ def get_mouse_event_object(
 
 
 def get_keyboard_event_object(
-    key: keyboard.Key | keyboard.KeyCode | None, event: str
+    key: keyboard.Key | keyboard.KeyCode | None | str, event: str
 ) -> DreamberdObject:
     return DreamberdObject(
         "MouseEvent",
@@ -2132,7 +2163,7 @@ def execute_after_statement(
         case "mouseclick":
             mouse_buttons = {}
 
-            def listener_func(x: int, y: int, button: mouse.Button, pressed: bool):
+            def listener_func(x: int, y: int, button: mouse.Button, pressed: bool):  # noqa: FBT001
                 nonlocal namespaces, statements_inside_scope
                 if pressed:
                     mouse_buttons[button] = (x, y)
@@ -2142,44 +2173,70 @@ def execute_after_statement(
                     ]:  # it has been released and then pressed again
                         interpret_code_statements(
                             statements_inside_scope,
-                            [*namespaces, {"event": Name("event", get_mouse_event_object(x, y, button, event.value))}],
+                            [
+                                *namespaces,
+                                {
+                                    "event": Name(
+                                        "event",
+                                        get_mouse_event_object(
+                                            x, y, button, event.value
+                                        ),
+                                    )
+                                },
+                            ],
                             [],
                             [*when_statement_watchers, {}],
                         )
                     del mouse_buttons[button]
 
-            listener = mouse.Listener(on_click=listener_func)  # type: ignore
+            listener = mouse.Listener(on_click=listener_func)  # pyright: ignore[reportPossiblyUnboundVariable]
 
         case "mousedown":
 
-            def listener_func(x: int, y: int, button: mouse.Button, pressed: bool):
+            def listener_func(x: int, y: int, button: mouse.Button, pressed: bool):  # noqa: FBT001
                 nonlocal namespaces, statements_inside_scope
                 if pressed:
                     interpret_code_statements(
                         statements_inside_scope,
-                        [*namespaces, {"event": Name("event", get_mouse_event_object(x, y, button, event.value))}],
+                        [
+                            *namespaces,
+                            {
+                                "event": Name(
+                                    "event",
+                                    get_mouse_event_object(x, y, button, event.value),
+                                )
+                            },
+                        ],
                         [],
                         [*when_statement_watchers, {}],
                     )
 
-            listener = mouse.Listener(on_click=listener_func)  # type: ignore
+            listener = mouse.Listener(on_click=listener_func)  # pyright: ignore[reportPossiblyUnboundVariable]
 
         case "mouseup":
 
-            def listener_func(x: int, y: int, button: mouse.Button, pressed: bool):
+            def listener_func(x: int, y: int, button: mouse.Button, pressed: bool):  # noqa: FBT001
                 nonlocal namespaces, statements_inside_scope
                 if not pressed:
                     interpret_code_statements(
                         statements_inside_scope,
-                        [*namespaces, {"event": Name("event", get_mouse_event_object(x, y, button, event.value))}],
+                        [
+                            *namespaces,
+                            {
+                                "event": Name(
+                                    "event",
+                                    get_mouse_event_object(x, y, button, event.value),
+                                )
+                            },
+                        ],
                         [],
                         [*when_statement_watchers, {}],
                     )
 
-            listener = mouse.Listener(on_click=listener_func)  # type: ignore
+            listener = mouse.Listener(on_click=listener_func)  # pyright: ignore[reportPossiblyUnboundVariable]
 
         case "keyclick":
-            keys = set()
+            keys: set[keyboard.Key | keyboard.KeyCode | None] = set()
 
             def on_press(key: keyboard.Key | keyboard.KeyCode | None):
                 nonlocal namespaces, statements_inside_scope
@@ -2189,26 +2246,27 @@ def execute_after_statement(
                 nonlocal namespaces, statements_inside_scope
                 if key in keys:
                     event_object = get_keyboard_event_object(
-                        key.char if isinstance(key, keyboard.KeyCode) else key,
+                        key.char if isinstance(key, keyboard.KeyCode) else key,  # pyright: ignore[reportPossiblyUnboundVariable]
                         event.value,
-                    )  # type: ignore
+                    )
                     interpret_code_statements(
                         statements_inside_scope,
                         [*namespaces, {"event": Name("event", event_object)}],
                         [],
                         [*when_statement_watchers, {}],
-                    )  # type: ignore
+                    )
                 keys.discard(key)
 
-            listener = keyboard.Listener(on_press=on_press, on_release=on_release)  # type: ignore
+            listener = keyboard.Listener(on_press=on_press, on_release=on_release)  # pyright: ignore[reportPossiblyUnboundVariable]
 
         case "keydown":
 
             def on_press(key: keyboard.Key | keyboard.KeyCode | None):
                 nonlocal namespaces, statements_inside_scope
                 event_object = get_keyboard_event_object(
-                    key.char if isinstance(key, keyboard.KeyCode) else key, event.value
-                )  # type: ignore
+                    key.char if isinstance(key, keyboard.KeyCode) else key,  # pyright: ignore[reportPossiblyUnboundVariable]
+                    event.value,
+                )
                 interpret_code_statements(
                     statements_inside_scope,
                     [*namespaces, {"event": Name("event", event_object)}],
@@ -2216,15 +2274,16 @@ def execute_after_statement(
                     [*when_statement_watchers, {}],
                 )
 
-            listener = keyboard.Listener(on_press=on_press)  # type: ignore
+            listener = keyboard.Listener(on_press=on_press)  # pyright: ignore[reportPossiblyUnboundVariable]
 
         case "keyup":
 
             def on_release(key: keyboard.Key | keyboard.KeyCode | None):
                 nonlocal namespaces, statements_inside_scope
                 event_object = get_keyboard_event_object(
-                    key.char if isinstance(key, keyboard.KeyCode) else key, event.value
-                )  # type: ignore
+                    key.char if isinstance(key, keyboard.KeyCode) else key,  # pyright: ignore[reportPossiblyUnboundVariable]
+                    event.value,
+                )
                 interpret_code_statements(
                     statements_inside_scope,
                     [*namespaces, {"event": Name("event", event_object)}],
@@ -2232,7 +2291,7 @@ def execute_after_statement(
                     [*when_statement_watchers, {}],
                 )
 
-            listener = keyboard.Listener(on_release=on_release)  # type: ignore
+            listener = keyboard.Listener(on_release=on_release)  # pyright: ignore[reportPossiblyUnboundVariable]
 
         case _:
             raise_error_at_line(
@@ -2252,7 +2311,7 @@ def gather_names_or_values(expr: ExpressionTreeNode) -> set[Token]:
             for arg in expr.args:
                 names |= gather_names_or_values(arg)
         case ListNode():
-            for val in expr.values:
+            for val in expr.values:  # noqa: PD011
                 names |= gather_names_or_values(val)
         case ExpressionNode():
             names |= gather_names_or_values(expr.right) | gather_names_or_values(
@@ -2266,6 +2325,8 @@ def gather_names_or_values(expr: ExpressionTreeNode) -> set[Token]:
             names |= gather_names_or_values(expr.expression)
         case ValueNode():
             names.add(expr.name_or_value)
+        case ExpressionTreeNode():
+            pass
     return names
 
 
@@ -2349,6 +2410,8 @@ def interpret_statement(
             | ExpressionStatement()
         ):
             expressions_to_check = [statement.expression]
+        case CodeStatement():
+            pass
     all_normal_nexts: set[tuple[str, int]] = set()
     all_async_nexts: set[str] = set()
     next_filtered_exprs: list[ExpressionTreeNode] = []
@@ -2377,6 +2440,8 @@ def interpret_statement(
             | ExpressionStatement()
         ):
             statement.expression = next_filtered_exprs[0]
+        case CodeStatement():
+            pass
     if all_normal_nexts:
         match (
             statement
@@ -2557,7 +2622,7 @@ def interpret_statement(
                 instance_made = True
                 obj = DreamberdObject(class_name.value, class_namespace)
                 if constructor := class_namespace.get(class_name.value):
-                    args = [obj] + list(args)  # type: ignore
+                    args = (obj, *args)
                     if not isinstance(func := constructor.value, DreamberdFunction):
                         raise_error_at_line(
                             filename,
@@ -2588,6 +2653,8 @@ def interpret_statement(
             namespaces[-1][statement.name.value] = Name(
                 statement.name.value, BuiltinFunction(-1, class_object_closure)
             )
+        case CodeStatement():
+            pass
 
     clear_temp_namespace(namespaces, prev_namespace)
     return retval
@@ -2603,7 +2670,7 @@ def fill_class_namespace(
         statement = determine_statement_type(possible_statements, namespaces)
         match statement:
             case FunctionDefinition():
-                if "this" in statement.args:
+                if "this" in statement.args:  # pyright: ignore[reportUnnecessaryContains]
                     raise_error_at_line(
                         filename,
                         code,
@@ -2645,12 +2712,12 @@ def fill_class_namespace(
 # cleanup out of date variables
 def decrement_variable_lifetimes(namespaces: list[Namespace]) -> None:
     for ns in namespaces:
-        remove_vars = []
+        remove_vars: list[str] = []
         for name, v in ns.items():
             if not isinstance(v, Variable):
                 continue
-            for l in v.lifetimes:
-                l.lines_left -= 1
+            for lifetime in v.lifetimes:
+                lifetime.lines_left -= 1
             v.clear_outdated_lifetimes()
             if not v.lifetimes:
                 remove_vars.append(name)
@@ -2661,8 +2728,10 @@ def decrement_variable_lifetimes(namespaces: list[Namespace]) -> None:
 
 
 # change the current line number to some token in the code
-def edit_current_line_number(statement: CodeStatement) -> None:
-    global current_line
+def edit_current_line_number(
+    statement: CodeStatement | CodeStatementKeywordable,
+) -> None:
+    global current_line  # noqa: PLW0603
     match statement:
         case CodeStatementKeywordable():
             current_line = statement.keyword.line
@@ -2678,6 +2747,8 @@ def edit_current_line_number(statement: CodeStatement) -> None:
         case ExpressionStatement():
             if t := get_expr_first_token(get_built_expression(statement.expression)):
                 current_line = t.line
+        case CodeStatement():
+            pass
 
 
 # if a return statement is found, this will return the expression evaluated at the return. otherwise, it will return None
@@ -2745,7 +2816,7 @@ def interpret_code_statements(
             if not 0 <= line_num < len(async_st):
                 continue
 
-            # this uesd to say async_st.pop(0) and i was genuinely wondering why it was changing, i'm so dumb
+            # this used to say async_st.pop(0) and i was genuinely wondering why it was changing, i'm so dumb
             statement = determine_statement_type(async_st[line_num], async_ns)
             if statement is None:
                 raise_error_at_line(
@@ -2782,7 +2853,7 @@ def load_globals(
     _exported_names: list[tuple[str, str, DreamberdValue]],
     _importable_names: dict[str, DreamberdValue],
 ):
-    global filename, code, name_watchers, deleted_values, current_line, exported_names, importable_names  # screw bad practice, not like anyone's using this anyways
+    global filename, code, name_watchers, deleted_values, current_line, exported_names, importable_names  # screw bad practice, not like anyone's using this anyways  # noqa: PLW0603
     filename = _filename
     code = _code
     name_watchers = _name_watchers

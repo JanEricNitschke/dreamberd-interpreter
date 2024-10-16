@@ -164,7 +164,7 @@ class ImportStatement(CodeStatement, CodeStatementKeywordable, CodeStatementDebu
 
 # idea: create a class that evaluates at runtime what a statement is, so then execute it
 def split_into_statements(tokens: list[Token]) -> list[list[Token]]:
-    statements = [[]]
+    statements: list[list[Token]] = [[]]
     bracket_layers = 0
     for token in tokens:
         # check for expression-ending newlines
@@ -197,8 +197,8 @@ def split_into_statements(tokens: list[Token]) -> list[list[Token]]:
                 statements[-1].pop()
             statements.append([])
 
-    # remove stray newlines cause they are annoying and shit, also remove empty tings
-    final_statements = []
+    # remove stray newlines cause they are annoying and shit, also remove empty things
+    final_statements: list[list[Token]] = []
     for statement in statements:
         while statement and statement[-1].type in {
             TokenType.WHITESPACE,
@@ -220,9 +220,9 @@ def split_into_statements(tokens: list[Token]) -> list[list[Token]]:
 def remove_type_hints(
     filename: str, code: str, statements: list[list[Token]]
 ) -> list[list[Token]]:
-    new_statements = []
+    new_statements: list[list[Token]] = []
     for tokens in statements:
-        new_tokens = []
+        new_tokens: list[Token] = []
         adding_tokens = True
         scope_layers, square_bracket_layers = 0, 0
         ref_square_bracket_layers = 0
@@ -324,7 +324,7 @@ def create_function_definition(
             )
 
     # too many or too little keywords for the function
-    if not 2 <= len(names_in_row) <= 4:
+    if not (2 <= len(names_in_row) <= 4):  # noqa: PLR2004
         raise_error_at_token(
             filename,
             code,
@@ -332,8 +332,8 @@ def create_function_definition(
             without_whitespace[0],
         )
 
-    is_async = len(names_in_row) == 4
-    can_be_async = len(names_in_row) == 3 and not other_names
+    is_async = len(names_in_row) == 4  # noqa: PLR2004
+    can_be_async = len(names_in_row) == 3 and not other_names  # noqa: PLR2004
     if not is_async and can_be_async:  # can be one of two forms:
         return (
             FunctionDefinition(  # func name(arg))
@@ -406,8 +406,8 @@ def create_scoped_code_statement(
     # see the function pointer -> immediately know
     can_be_function = any(
         t.type == TokenType.FUNC_POINT
-            for i, t in enumerate(without_whitespace)
-            if i < scope_open_index
+        for i, t in enumerate(without_whitespace)
+        if i < scope_open_index
     )
 
     # now finally, check for classes
@@ -420,8 +420,8 @@ def create_scoped_code_statement(
     # finally finally, check for the after or when statement -- this will have identical syntax to the conditional so there
     # is no point in doing anything extra special
 
-    # this dude is seperated to another function because the same code is reused in () => ... functions (no scope)
-    possibilities = []
+    # this dude is separated to another function because the same code is reused in () => ... functions (no scope)
+    possibilities: list[CodeStatement] = []
     if can_be_function:
         return create_function_definition(
             filename, without_whitespace, code, statements_inside_scope
@@ -489,15 +489,22 @@ def create_unscoped_code_statement(
     confidence = 0 if is_debug else len(tokens[-1].value)
     debug_level = 0 if not is_debug else len(tokens[-1].value)
 
-    if len(l := [t for t in tokens if t.type != TokenType.WHITESPACE]) == 2:
+    if (
+        len(
+            non_whitespace_tokens := [
+                t for t in tokens if t.type != TokenType.WHITESPACE
+            ]
+        )
+        == 2  # noqa: PLR2004
+    ):
         return (
-            ReverseStatement(l[0], debug_level),
+            ReverseStatement(non_whitespace_tokens[0], debug_level),
             ExpressionStatement(tokens[:-1], debug_level),
         )
 
     # it's a function!!!!!!!!!!!!!!!!!
-    if any(l := [t.type == TokenType.FUNC_POINT for t in tokens]):
-        func_point_index = l.index(True)
+    if any(non_whitespace_tokens := [t.type == TokenType.FUNC_POINT for t in tokens]):
+        func_point_index = non_whitespace_tokens.index(True)
         return create_function_definition(
             filename,
             without_whitespace,
@@ -518,7 +525,7 @@ def create_unscoped_code_statement(
         all(
             t.type in {TokenType.NAME, TokenType.COMMA} for t in without_whitespace[:-1]
         )
-        and len(without_whitespace) >= 3
+        and len(without_whitespace) >= 3  # noqa: PLR2004
         and is_proper_comma_list(without_whitespace[1:-1])
         and without_whitespace[0].type == TokenType.NAME
         and without_whitespace[1].type == TokenType.NAME
@@ -530,7 +537,7 @@ def create_unscoped_code_statement(
             t.type in {TokenType.STRING, TokenType.NAME, TokenType.COMMA}
             for t in without_whitespace[:-1]
         )
-        and len(without_whitespace) >= 5
+        and len(without_whitespace) >= 5  # noqa: PLR2004
         and is_proper_comma_list(without_whitespace[1:-3])
         and without_whitespace[0].type == TokenType.NAME
         and without_whitespace[1].type == TokenType.NAME
@@ -542,7 +549,7 @@ def create_unscoped_code_statement(
     can_be_return = without_whitespace[0].type == TokenType.NAME
     can_be_delete = (
         can_be_return
-        and len(without_whitespace) == 3
+        and len(without_whitespace) == 3  # noqa: PLR2004
         and without_whitespace[1].type == TokenType.NAME
         and without_whitespace[2].type in {TokenType.BANG, TokenType.QUESTION}
     )
@@ -556,7 +563,7 @@ def create_unscoped_code_statement(
 
     # checking for single name and index for variable assignment
     can_be_var_assignment &= (
-        len(without_whitespace) >= 4
+        len(without_whitespace) >= 4  # noqa: PLR2004
         and without_whitespace[0].type == TokenType.NAME
         and without_whitespace[1].type in {TokenType.EQUAL, TokenType.L_SQUARE}
     )
@@ -606,14 +613,14 @@ def create_unscoped_code_statement(
         else:
             if (
                 t.type == TokenType.GREATER_THAN
-                or not 3 <= len(names_in_row) <= 4
+                or not (3 <= len(names_in_row) <= 4)  # noqa: PLR2004
                 or not can_be_var_declaration
             ):
                 break
             if not lifetime:
                 lifetime = t.value
 
-    can_be_var_declaration &= 3 <= len(names_in_row) <= 4
+    can_be_var_declaration &= 3 <= len(names_in_row) <= 4  # noqa: PLR2004
 
     # make a list of all possible things, starting with plain expression
     possibilities: list[CodeStatement] = [ExpressionStatement(tokens[:-1], debug_level)]
@@ -661,7 +668,7 @@ def create_unscoped_code_statement(
                 lifetime=lifetime,
                 expression=tokens[
                     tokens_is_equal.index(True) + 1 : -1
-                ],  # the end should be a puncutation
+                ],  # the end should be a punctuation
                 confidence=confidence,
                 debug=debug_level,
             )
@@ -686,34 +693,36 @@ def generate_syntax_tree(
     assert_proper_indentation(filename, tokens, code)
     statements = split_into_statements(tokens)
     removed_hints = remove_type_hints(filename, code, statements)
-    final_statements = []
+    final_statements: list[tuple[CodeStatement, ...]] = []
 
     # now we need to perform pattern matching on each list of statements
-    for tokens in removed_hints:
-        without_whitespace = [t for t in tokens if t.type != TokenType.WHITESPACE]
+    for cleaned_tokens in removed_hints:
+        without_whitespace = [
+            t for t in cleaned_tokens if t.type != TokenType.WHITESPACE
+        ]
 
         try:
             # contains an open scope :)
-            if any(t.type == TokenType.L_CURLY for t in tokens):
+            if any(t.type == TokenType.L_CURLY for t in cleaned_tokens):
                 final_statements.append(
                     create_scoped_code_statement(
-                        filename, tokens, without_whitespace, code
+                        filename, cleaned_tokens, without_whitespace, code
                     )
                 )
 
             else:
                 final_statements.append(
                     create_unscoped_code_statement(
-                        filename, tokens, without_whitespace, code
+                        filename, cleaned_tokens, without_whitespace, code
                     )
                 )
 
-            # exit if some possiblity was found
+            # exit if some possibility was found
             if final_statements[-1]:
                 continue
         except (
             IndexError
-        ):  # i have no idea what kind of errors are going to be rasied here
+        ):  # i have no idea what kind of errors are going to be raised here
             pass
         raise_error_at_line(
             filename,

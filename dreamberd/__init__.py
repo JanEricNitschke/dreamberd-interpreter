@@ -1,12 +1,14 @@
 import re
 import sys
 from argparse import ArgumentParser
+from pathlib import Path
 from time import sleep
-from typing import Optional, Union
 
 from dreamberd.base import InterpretationError, NonFormattedError, Token, TokenType
 from dreamberd.builtin import KEYWORDS, DreamberdValue, Name, Variable
 from dreamberd.interpreter import (
+    AsyncStatements,
+    WhenStatementWatchers,
     interpret_code_statements,
     interpret_code_statements_main_wrapper,
     load_global_dreamberd_variables,
@@ -54,24 +56,29 @@ def __get_next_repl_input(closed_scope_layers: int = 0) -> tuple[str, list[Token
         new_code, new_tokens = __get_next_repl_input(closed_scope_layers)
         code += new_code
         tokens += new_tokens
-    match l := [t for t in tokens if t.type != TokenType.WHITESPACE]:
+    match non_whitespace_tokens := [
+        t for t in tokens if t.type != TokenType.WHITESPACE
+    ]:
         case [Token(type=TokenType.NAME)]:
             tokens = [
                 Token(TokenType.NAME, "print", -1, -1),
                 Token(TokenType.WHITESPACE, " ", -1, -1),
-                l[0],
+                non_whitespace_tokens[0],
                 Token(TokenType.BANG, "!", -1, -1),
             ]
+        case _:
+            # Not sure why this is a match tbh.
+            pass
     return code, tokens
 
 
 def run_repl() -> None:
-    namespaces: list[dict[str, Variable | Name]] = [KEYWORDS.copy()]  # type: ignore
+    namespaces: list[dict[str, Variable | Name]] = [KEYWORDS.copy()]  # pyright: ignore[reportAssignmentType]
     load_globals(__REPL_FILENAME, "", {}, set(), [], {})
     load_global_dreamberd_variables(namespaces)
     load_public_global_variables(namespaces)
-    async_statements = []
-    when_statement_watchers = [{}]
+    async_statements: AsyncStatements = []
+    when_statement_watchers: WhenStatementWatchers = [{}]
     while True:
         try:
             code, tokens = __get_next_repl_input()
@@ -91,12 +98,12 @@ def run_repl() -> None:
 
 
 def run_file(main_filename: str) -> None:  # idk what else to call this
-    with open(main_filename, encoding="utf-8") as f:
+    with Path(main_filename).open(encoding="utf-8") as f:
         code_lines = f.readlines()
 
-    # split up into seperate 'files' by finding which lines start with multiple equal signs
+    # split up into separate 'files' by finding which lines start with multiple equal signs
     files: list[tuple[str | None, str]] = []
-    if any(matches := [re.match(r"=====.*", l) for l in code_lines]):
+    if any(matches := [re.match(r"=====.*", line) for line in code_lines]):
         for i, match in reversed([*enumerate(matches)]):
             if match is None:
                 continue
@@ -110,12 +117,12 @@ def run_file(main_filename: str) -> None:  # idk what else to call this
     # execute code for each file
     importable_names: dict[str, dict[str, DreamberdValue]] = {}
     for filename, code in files:
-        filename = filename or "__unnamed_file__"
+        filename = filename or "__unnamed_file__"  # noqa: PLW2901
         tokens = tokenize(filename, code)
         statements = generate_syntax_tree(filename, tokens, code)
 
         # load variables and run the code
-        namespaces: list[dict[str, Variable | Name]] = [KEYWORDS.copy()]  # type: ignore
+        namespaces: list[dict[str, Variable | Name]] = [KEYWORDS.copy()]  # pyright: ignore[reportAssignmentType]
         exported_names: list[tuple[str, str, DreamberdValue]] = []
         load_globals(
             filename,

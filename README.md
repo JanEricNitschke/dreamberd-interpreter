@@ -15,7 +15,7 @@ $ pip install "dreamberd[input]"
 $ pip install "dreamberd[globals]"
 ```
 
-Each of these commands installs DreamBerd with the respective dependencies. `input` installs the `pynput` package and allows the use of `after` statements and event watchers. `globals` installs `PyGithub` and allows you to declare `const const const` variables that are publically stored using GitHub. Note: to use the latter, you must enter a [Personal Access Token](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens) in the `GITHUB_ACCESS_TOKEN` environment variable.
+Each of these commands installs DreamBerd with the respective dependencies. `input` installs the `pynput` package and allows the use of `after` statements and event watchers. `globals` installs `PyGithub` and allows you to declare `const const const` variables that are publicly stored using GitHub. Note: to use the latter, you must enter a [Personal Access Token](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens) in the `GITHUB_ACCESS_TOKEN` environment variable.
 
 ## Usage
 
@@ -196,7 +196,7 @@ when (health = 0) {
 Hi! It's me again. I took some creative liberty implementing the `when` statement, here's how it works:
 
 - When defined, gather a list of names that are used in the expression of the statement.
-- If a variable is detected, cause the when satement to watch that variable.
+- If a variable is detected, cause the when statement to watch that variable.
     - This is done in order to avoid watching names instead of variables when, say, a different variable with the same name is defined in a different scope.
     - Speaking of scope, when statements for which changes are detected in a different scope (from that of definition) **use that scope within their code**.
         - Looking back on my design decision, I am probably going to change this to make them always use the scope where they were defined.

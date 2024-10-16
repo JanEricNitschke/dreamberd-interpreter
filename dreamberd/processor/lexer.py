@@ -23,7 +23,8 @@ def get_effective_whitespace_value(char: str) -> str:
             return " "
         case "\t":
             return char
-    return ""
+        case _:
+            return ""
 
 
 def get_quote_count(quote_value: str) -> int:
@@ -87,7 +88,7 @@ def get_string_token(
 def tokenize(filename: str, code: str) -> list[Token]:
     code += "   "  # adding a space here so i dont have to write 10 damn checks for out of bounds
     line_count = 1
-    tokens = []
+    tokens: list[Token] = []
     curr, start = 0, 0
     while curr < len(code):
         match code[curr]:
@@ -173,7 +174,7 @@ def tokenize(filename: str, code: str) -> list[Token]:
                 while code[curr + 1] == "?":
                     value += "?"
                     curr += 1
-                if len(value) > 4:
+                if len(value) > 4:  # noqa: PLR2004
                     raise_error_at_line(
                         filename,
                         code,

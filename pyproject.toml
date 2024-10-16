@@ -22,6 +22,7 @@ globals = ["pygithub"]
 
 [tool.poetry.group.dev.dependencies]
 pre-commit = "^4.0.1"
+typing-extensions = "^4.12.2"
 
 [build-system]
 requires      = ["poetry_core>=1.0.0"]
@@ -78,6 +79,9 @@ ignore = [
     "PERF",   # False positives and no real benefit
     "D",      # Too much work for now
     "ANN",
+    "PLR0912",
+    "PLR0911",
+    "PLR0915",
     "E501",   # Fine for comments
     "T201",   # Leave my prints be
 ]
@@ -115,7 +119,7 @@ testpaths = ["tests"]
 
 [tool.pyright]
 include                            = ["dreamberd"]
-exclude                            = ["tests"]
+exclude                            = ["tests", "dreamberd/serialize.py"]
 typeCheckingMode                   = "strict"
 strictListInference                = true
 strictDictionaryInference          = true
@@ -128,10 +132,10 @@ reportUntypedClassDecorator        = "error"
 reportUntypedBaseClass             = "error"
 reportUntypedNamedTuple            = "error"
 reportPrivateUsage                 = "error"
-reportConstantRedefinition         = "error"
+reportConstantRedefinition         = "none"
 reportOverlappingOverload          = "error"
 reportMissingParameterType         = "error"
-reportUnnecessaryIsInstance        = "error"
+reportUnnecessaryIsInstance        = "none"
 reportUnnecessaryCast              = "error"
 reportUnnecessaryComparison        = "error"
 reportUnnecessaryContains          = "error"
