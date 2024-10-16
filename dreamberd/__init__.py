@@ -143,7 +143,8 @@ def run_file(main_filename: str) -> None:  # idk what else to call this
             importable_names[target_filename][name] = value
 
     print(
-        "\033[33mCode has finished executing. Press ^C once or twice to stop waiting for when-statements and after-statements.\033[039m"
+        "\033[33mCode has finished executing. Press ^C once or twice to stop waiting for when-statements and after-statements.\033[039m",
+        flush=True,
     )
     try:
         while True:
