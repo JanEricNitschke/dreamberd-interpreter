@@ -147,7 +147,7 @@ class DreamberdList(
     def __post_init__(self):
         self.create_namespace(is_update=False)
         self.indexer = {}
-        for index in range(len(self.values)):
+        for index in range(-1, len(self.values) - 1):
             self.indexer[index] = index
 
     def create_namespace(self, *, is_update: bool = True) -> None:
