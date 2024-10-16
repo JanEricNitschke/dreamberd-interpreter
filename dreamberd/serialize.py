@@ -1,17 +1,51 @@
 import dataclasses
 from collections.abc import Callable
-from typing import Any, Union, assert_never
+from typing import Any, assert_never
 
 from dreamberd.base import NonFormattedError, Token, TokenType
 
-# BAD PRACTICE !!!
-from dreamberd.builtin import *
-from dreamberd.builtin import KEYWORDS, BuiltinFunction, DreamberdValue, Name, Variable
-from dreamberd.processor.syntax_tree import *
-from dreamberd.processor.syntax_tree import CodeStatement
+# Need to import everything for the eval calls.
+from dreamberd.builtin import (
+    KEYWORDS,
+    BuiltinFunction,
+    DreamberdBoolean,
+    DreamberdFunction,
+    DreamberdKeyword,
+    DreamberdList,
+    DreamberdMap,
+    DreamberdNumber,
+    DreamberdObject,
+    DreamberdPromise,
+    DreamberdSpecialBlankValue,
+    DreamberdString,
+    DreamberdUndefined,
+    DreamberdValue,
+    Name,
+    Variable,
+    db_list_pop,
+    db_list_push,
+    db_str_pop,
+    db_str_push,
+)
+from dreamberd.processor.syntax_tree import (
+    AfterStatement,
+    ClassDeclaration,
+    CodeStatement,
+    Conditional,
+    DeleteStatement,
+    ExportStatement,
+    ExpressionStatement,
+    FunctionDefinition,
+    ImportStatement,
+    ReturnStatement,
+    ReverseStatement,
+    VariableAssignment,
+    VariableDeclaration,
+    WhenStatement,
+)
 
 SerializedDict = dict[str, str | dict | list]
-DataclassSerializations = Union[Name, Variable, DreamberdValue, CodeStatement, Token]
+DataclassSerializations = Name | Variable | DreamberdValue | CodeStatement | Token
 
 
 def serialize_obj(obj: Any) -> SerializedDict:
@@ -27,9 +61,8 @@ def deserialize_obj(val: dict) -> Any:
         return deserialize_dreamberd_obj(val)
     if "python_obj_type" in val:
         return deserialize_python_obj(val)
-    raise NonFormattedError(
-        "Invalid object type in Dreamberd Variable deserialization."
-    )
+    msg = "Invalid object type in Dreamberd Variable deserialization."
+    raise NonFormattedError(msg)
 
 
 def serialize_python_obj(obj: Any) -> dict[str, str | dict | list]:
@@ -38,9 +71,8 @@ def serialize_python_obj(obj: Any) -> dict[str, str | dict | list]:
             val = obj.value
         case dict():
             if not all(isinstance(k, str) for k in obj):
-                raise NonFormattedError(
-                    "Serialization Error: Encountered non-string dictionary keys."
-                )
+                msg = "Serialization Error: Encountered non-string dictionary keys."
+                raise NonFormattedError(msg)
             val = {k: serialize_obj(v) for k, v in obj.items()}
         case list() | tuple():
             val = [serialize_obj(x) for x in obj]
@@ -74,9 +106,8 @@ def deserialize_python_obj(val: dict) -> Any:
         "bool",
     ]:
         print(val["python_obj_type"])
-        raise NonFormattedError(
-            "Invalid `python_obj_type` detected in deserialization."
-        )
+        msg = "Invalid `python_obj_type` detected in deserialization."
+        raise NonFormattedError(msg)
 
     match val["python_obj_type"]:
         case "list":
@@ -91,16 +122,14 @@ def deserialize_python_obj(val: dict) -> Any:
             return None
         case "bool":
             if val["value"] not in ["True", "False"]:
-                raise NonFormattedError(
-                    "Invalid boolean detected in object deserialization."
-                )
+                msg = "Invalid boolean detected in object deserialization."
+                raise NonFormattedError(msg)
             return eval(val["value"])
         case "TokenType":
             if v := TokenType.from_val(val["value"]):
                 return v
-            raise NonFormattedError(
-                "Invalid TokenType detected in object deserialization."
-            )
+            msg = "Invalid TokenType detected in object deserialization."
+            raise NonFormattedError(msg)
         case "function":
             if val["value"] in [
                 "db_list_pop",
@@ -112,9 +141,8 @@ def deserialize_python_obj(val: dict) -> Any:
             if not (v := KEYWORDS.get(val["value"])) or not isinstance(
                 v.value, BuiltinFunction
             ):
-                raise NonFormattedError(
-                    "Invalid builtin function detected in object deserialization."
-                )
+                msg = "Invalid builtin function detected in object deserialization."
+                raise NonFormattedError(msg)
             return v.value.function
         case invalid:
             assert_never(invalid)
@@ -127,13 +155,13 @@ def serialize_dreamberd_obj(
         "dreamberd_obj_type": type(val).__name__,
         "attributes": [
             {"name": field.name, "value": serialize_obj(getattr(val, field.name))}
-            for field in dataclasses.fields(val)  # type: ignore
+            for field in dataclasses.fields(val)
         ],
     }
 
 
 def get_subclass_name_list(cls: type[DataclassSerializations]) -> list[str]:
-    return [*map(lambda x: x.__name__, cls.__subclasses__())]
+    return [*(x.__name__ for x in cls.__subclasses__())]
 
 
 def deserialize_dreamberd_obj(val: dict) -> DataclassSerializations:
@@ -144,9 +172,8 @@ def deserialize_dreamberd_obj(val: dict) -> DataclassSerializations:
         *get_subclass_name_list(CodeStatement),
         *get_subclass_name_list(DreamberdValue),
     ]:
-        raise NonFormattedError(
-            "Invalid `dreamberd_obj_type` detected in deserialization."
-        )
+        msg = "Invalid `dreamberd_obj_type` detected in deserialization."
+        raise NonFormattedError(msg)
 
     # beautiful, elegant, error-free, safe python code :D
     attrs = {at["name"]: deserialize_obj(at["value"]) for at in val["attributes"]}
@@ -162,4 +189,4 @@ if __name__ == "__main__":
     )
     serialized = serialize_obj(list_test_case)
     __import__("pprint").pprint(serialized)
-    assert list_test_case == deserialize_obj(serialized)
+    assert list_test_case == deserialize_obj(serialized)  # noqa: S101
