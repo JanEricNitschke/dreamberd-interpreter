@@ -7,6 +7,7 @@
 
 from __future__ import annotations
 
+import dataclasses
 import json
 import locale
 import os
@@ -639,9 +640,15 @@ def assign_variable(
                     name_token.line,
                     "Attempted to index into an un-indexable object.",
                 )
+
             index = remaining_indexes.pop(0)
 
-            # check for some watchers here too!!!!!!!!!!!
+            if not remaining_indexes:  # perform actual assignment here
+                value_to_modify.assign_index(index, new_value)
+            else:
+                assign_variable_helper(
+                    value_to_modify.access_index(index), remaining_indexes
+                )
             when_watchers = get_code_from_when_statement_watchers(
                 id(value_to_modify), when_statement_watchers
             )
@@ -660,19 +667,11 @@ def assign_variable(
                 )
                 visited_whens.append(when_watcher)
 
-            if not remaining_indexes:  # perform actual assignment here
-                value_to_modify.assign_index(index, new_value)
-            else:
-                assign_variable_helper(
-                    value_to_modify.access_index(index), remaining_indexes
-                )
-
         if isinstance(var, Variable) and not var.can_edit_value:
             raise_error_at_token(
                 filename, code, "Cannot edit the value of this variable.", name_token
             )
         assign_variable_helper(var.value, indexes)
-
     else:
         if not isinstance(var, Variable):
             raise_error_at_token(
@@ -1623,7 +1622,10 @@ def handle_next_expressions(
                     last_name = name.split(".")[-1]
                     normal_nexts.add((name, id(ns)))
                     expr = expr.args[0]
-                    expr.name_or_value.value = get_modified_next_name(last_name, id(ns))
+                    expr.name_or_value = dataclasses.replace(
+                        expr.name_or_value,
+                        value=get_modified_next_name(last_name, id(ns)),
+                    )
 
                 elif is_await:
                     if len(expr.args) != 1 or not isinstance(
@@ -1670,8 +1672,9 @@ def handle_next_expressions(
                             name
                         )  # only need to store the name for the async ones because we are going to wait anyways
                         expr = inner_expr.args[0]
-                        expr.name_or_value.value = get_modified_next_name(
-                            last_name, id(ns)
+                        expr.name_or_value = dataclasses.replace(
+                            expr.name_or_value,
+                            value=get_modified_next_name(last_name, id(ns)),
                         )
 
             else:
@@ -2388,6 +2391,23 @@ def interpret_statement(
     async_statements: AsyncStatements,
     when_statement_watchers: WhenStatementWatchers,
 ) -> DreamberdValue | None:
+    # Save for later restoration
+    old_expression = None
+    old_indixes = None
+    match statement:
+        case VariableAssignment():
+            old_expression = statement.expression
+            old_indixes = statement.indexes
+        case (
+            VariableDeclaration()
+            | Conditional()
+            | AfterStatement()
+            | ExpressionStatement()
+        ):
+            old_expression = statement.expression
+        case CodeStatement():
+            pass
+
     # build a list of expressions that are modified to allow for the next keyword
     expressions_to_check: list[list[Token] | ExpressionTreeNode] = []
     match statement:
@@ -2402,6 +2422,7 @@ def interpret_statement(
             expressions_to_check = [statement.expression]
         case CodeStatement():
             pass
+
     all_normal_nexts: set[tuple[str, int]] = set()
     all_async_nexts: set[str] = set()
     next_filtered_exprs: list[ExpressionTreeNode] = []
@@ -2417,7 +2438,6 @@ def interpret_statement(
     all_nexts = {s[0] for s in all_normal_nexts} | all_async_nexts
     for expr in next_filtered_exprs:
         prev_namespace |= save_previous_values_next_expr(expr, all_nexts, namespaces)
-
     # we replace the expression stored in each statement with the newly built one  -- TODO: consider changing this as to not override expressions
     match statement:
         case VariableAssignment():
@@ -2432,6 +2452,7 @@ def interpret_statement(
             statement.expression = next_filtered_exprs[0]
         case CodeStatement():
             pass
+
     if all_normal_nexts:
         match (
             statement
@@ -2643,6 +2664,21 @@ def interpret_statement(
             namespaces[-1][statement.name.value] = Name(
                 statement.name.value, BuiltinFunction(-1, class_object_closure)
             )
+        case CodeStatement():
+            pass
+
+    # restore the expression to its original state
+    match statement:
+        case VariableAssignment():
+            statement.expression = old_expression  # pyright: ignore[reportAttributeAccessIssue]
+            statement.indexes = old_indixes  # pyright: ignore[reportAttributeAccessIssue]
+        case (
+            VariableDeclaration()
+            | Conditional()
+            | AfterStatement()
+            | ExpressionStatement()
+        ):
+            statement.expression = old_expression  # pyright: ignore[reportAttributeAccessIssue]
         case CodeStatement():
             pass
 
