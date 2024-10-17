@@ -14,6 +14,7 @@ import os
 import pickle
 import random
 import re
+import sys
 from copy import deepcopy
 from difflib import SequenceMatcher
 from pathlib import Path
@@ -1920,6 +1921,7 @@ def adjust_for_normal_nexts(
     for name, start_len in zip(async_nexts, old_async_vals, strict=False):
         curr_len = get_state_watcher(get_name_from_namespaces(name, namespaces))
         while start_len != curr_len:
+            exit_on_dead_listener()
             curr_len = get_state_watcher(get_name_from_namespaces(name, namespaces))
 
     # now, build a namespace for each one
@@ -1992,6 +1994,7 @@ def wait_for_async_nexts(
     for name, start_len in zip(async_nexts, old_async_vals, strict=True):
         curr_len = get_state_watcher(get_name_from_namespaces(name, namespaces))
         while start_len == curr_len:
+            exit_on_dead_listener()
             curr_len = get_state_watcher(get_name_from_namespaces(name, namespaces))
 
     # now, build a namespace for each one
@@ -2295,6 +2298,7 @@ def execute_after_statement(
             )
 
     listener.start()
+    AFTER_LISTENERS.append(listener)  # pyright: ignore[reportUnknownMemberType]
 
 
 def gather_names_or_values(expr: ExpressionTreeNode) -> set[Token]:
@@ -2866,6 +2870,8 @@ def interpret_code_statements(
             interpret_statement(
                 statement, async_ns, async_statements, when_statement_watchers
             )
+
+        exit_on_dead_listener()
     return None
 
 
@@ -2879,7 +2885,7 @@ def load_globals(
     _exported_names: list[tuple[str, str, DreamberdValue]],
     _importable_names: dict[str, DreamberdValue],
 ):
-    global filename, code, name_watchers, deleted_values, current_line, exported_names, importable_names  # screw bad practice, not like anyone's using this anyways  # noqa: PLW0603
+    global filename, code, name_watchers, deleted_values, current_line, exported_names, importable_names, AFTER_LISTENERS  # screw bad practice, not like anyone's using this anyways  # noqa: PLW0603
     filename = _filename
     code = _code
     name_watchers = _name_watchers
@@ -2887,6 +2893,7 @@ def load_globals(
     exported_names = _exported_names
     importable_names = _importable_names
     current_line = 1
+    AFTER_LISTENERS = []
 
 
 def interpret_code_statements_main_wrapper(
@@ -2901,3 +2908,12 @@ def interpret_code_statements_main_wrapper(
         )
     except NonFormattedError as e:
         raise_error_at_line(filename, code, current_line, str(e))
+
+
+def exit_on_dead_listener() -> None:
+    """If any listener is dead, this means that it hit a `exit` call.
+
+    But this exit call should exit the entire program.
+    """
+    if not all(listener.is_alive() for listener in AFTER_LISTENERS):  # pyright: ignore[reportUnknownArgumentType, reportUnknownMemberType, reportUnknownVariableType]
+        sys.exit()
